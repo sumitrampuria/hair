@@ -34,12 +34,12 @@ timestamp, idx = 0, 0
 active_count, win_count, loss_count, ce_limit_adjustment, pe_limit_adjustment = 0, 0, 0, 0, 0
 last_vol, last_price = 100000000, 0
 threshold_volume = 43
-stop_loss = -17
+stop_loss = -14
 target_profit = 10
 lots = 1
 threshold_trade_not_done_secs = 210
-ce_strike = 34800
-pe_strike = 34800
+ce_strike = 35500
+pe_strike = 35400
 threshold_selloff = 15000
 abandon_ce_initial, abandon_pe_initial = False, False
 
@@ -81,14 +81,14 @@ def main1():
 
     india_vix_nse_index = alice.get_instrument_by_symbol('NSE', 'India VIX')
     bank_nifty_nse_index = alice.get_instrument_by_symbol('NSE', 'Nifty Bank')
-    bank_nifty_nse_fut = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 5, 27), is_fut=True)
-    ins_scrip_ce = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 5, 27), is_fut=False,
+    bank_nifty_nse_fut = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 6, 24), is_fut=True)
+    ins_scrip_ce = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 6, 3), is_fut=False,
                                                 strike=(ce_strike+0), is_CE=True)
-    ins_scrip_pe = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 5, 27), is_fut=False,
+    ins_scrip_pe = alice.get_instrument_for_fno(symbol='BANKNIFTY', expiry_date=datetime.date(2021, 6, 3), is_fut=False,
                                                 strike=(pe_strike+0), is_CE=False)
-    ce_symbol = 'BANKNIFTY 3 JUN21 '+str(ce_strike)+'.0 CE'
+    ce_symbol = 'BANKNIFTY 03 JUN21 '+str(ce_strike)+'.0 CE'
     # ce_symbol = 'BANKNIFTY MAY ' + str(ce_strike) + '.0 CE'
-    pe_symbol = 'BANKNIFTY 3 JUN21 '+str(pe_strike)+'.0 PE'
+    pe_symbol = 'BANKNIFTY 03 JUN21 '+str(pe_strike)+'.0 PE'
     fut_symbol = 'BANKNIFTY JUN FUT'
     list_scripts=[bank_nifty_nse_index, bank_nifty_nse_fut, ins_scrip_ce, ins_scrip_pe]
 
@@ -299,15 +299,16 @@ def main1():
                             if(active_ce_tick.iloc[-1]['vol']-last_vol>threshold_selloff):
                                 print("huge volume in ce")
                                 if (last_price>active_ce_tick.iloc[-1]['ltp']):
-                                    alice.cancel_order(ce_stoploss_order['data']['oms_order_id'])
-                                    print('Huge selloff came in ce, current vol: ', active_ce_tick.iloc[-1]['vol'])
-                                    place_market(ins_scrip_ce, 'SELL')
-                                    print("Last volume: " + str(last_vol)+" | Last price: "+str(last_price)+" count: "+str(active_count))
-                                    print("Traded timestamp: "+str(traded_timestamp)+" Current timestamp: "+str(timestamp))
-                                    abandon_pe = True
-                                    abandon_ce = True
-                                    loss_count = loss_count + 1
-                                    oi_data.loc[idx, 'misc'] = 'vol_spike'
+                                    print("Traded timestamp: " + str(traded_timestamp) + " Current timestamp: " + str(timestamp))
+                                    if(timestamp - traded_timestamp > 5):
+                                        alice.cancel_order(ce_stoploss_order['data']['oms_order_id'])
+                                        print('Huge selloff came in ce, current vol: ', active_ce_tick.iloc[-1]['vol'])
+                                        place_market(ins_scrip_ce, 'SELL')
+                                        print("Last volume: " + str(last_vol)+" | Last price: "+str(last_price)+" count: "+str(active_count))
+                                        abandon_pe = True
+                                        abandon_ce = True
+                                        loss_count = loss_count + 1
+                                        oi_data.loc[idx, 'misc'] = 'vol_spike'
 
                             if (active_ce_tick.iloc[-1]['bid'] - traded_price >= target_profit):
                                 alice.cancel_order(ce_stoploss_order['data']['oms_order_id'])
@@ -341,15 +342,16 @@ def main1():
                             if(active_pe_tick.iloc[-1]['vol']-last_vol>threshold_selloff):
                                 print("huge vol in pe")
                                 if (last_price>active_pe_tick.iloc[-1]['ltp']):
-                                    alice.cancel_order(pe_stoploss_order['data']['oms_order_id'])
-                                    print('Huge selloff came in pe, vol: ', active_pe_tick.iloc[-1]['vol'])
-                                    place_market(ins_scrip_pe, 'SELL')
-                                    print("Last volume: " + str(last_vol)+" | Last price: "+str(last_price)+" count: "+str(active_count))
-                                    print("Traded timestamp: "+str(traded_timestamp)+" Current timestammp: "+str(timestamp))
-                                    abandon_pe = True
-                                    abandon_ce = True
-                                    loss_count = loss_count + 1
-                                    oi_data.loc[idx, 'misc'] = 'vol_spike'
+                                    print("Traded timestamp: " + str(traded_timestamp) + " Current timestamp: " + str(timestamp))
+                                    if (timestamp - traded_timestamp > 5):
+                                        alice.cancel_order(pe_stoploss_order['data']['oms_order_id'])
+                                        print('Huge selloff came in pe, vol: ', active_pe_tick.iloc[-1]['vol'])
+                                        place_market(ins_scrip_pe, 'SELL')
+                                        print("Last volume: " + str(last_vol)+" | Last price: "+str(last_price)+" count: "+str(active_count))
+                                        abandon_pe = True
+                                        abandon_ce = True
+                                        loss_count = loss_count + 1
+                                        oi_data.loc[idx, 'misc'] = 'vol_spike'
 
                             last_vol = active_pe_tick.iloc[-1]['vol']
                             last_price = active_pe_tick.iloc[-1]['ltp']
@@ -397,7 +399,7 @@ def main1():
                             active_tick.to_csv(r'active_tick_data_' + str(active_count) + '.csv')
                             oi_data.loc[(oi_data['status'] == 'pending'), 'active_count'] = active_count
 
-                        t.sleep(0.9)
+                        # t.sleep(0.9)
 
 
             else:
@@ -521,6 +523,6 @@ def main2():
     #     df.to_csv(r'tick_data_' + str(count) + '.csv')
 
 if __name__ == '__main__':
-    main2()
+    main1()
 
 
